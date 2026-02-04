@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>R.Z.Weather & Earthquake Tracker</title>
+    <style>
+        /* --- CSS VARIABLES & RESET --- */
+        :root {
+            --bg-gradient: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #f5576c);
+            --glass-bg: rgba(255, 255, 255, 0.12);
+            --glass-border: rgba(255, 255, 255, 0.25);
+            --text-main: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.9);
+            --card-radius: 24px;
+            --shadow-lg: 0 15px 35px rgba(0, 0, 0, 0.15);
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: var(--font-family);
+            background: var(--bg-gradient);
+            background-size: 400% 400%;
+            animation: gradientBG 20s ease infinite;
+            color: var(--text-main);
+            min-height: 100vh;
+            transition: background 1s ease;
+            overflow-x: hidden;
+            line-height: 1.4;
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0px); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity:1; transform: translateY(0); }
+        }
+
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+            100% { transform: scale(1); }
+        }
+
+        /* --- LAYOUT UTILITIES --- */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            padding-bottom: 60px;
+        }
+
+        .grid { display: grid; gap: 12px; }
+        .flex { display: flex; gap: 8px; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .justify-center { justify-content: center; }
+        .hidden { display: none !important; }
+        
+        /* Staggered animation helper */
+        .animate-entry {
+            opacity: 0;
+            animation: fadeInUp 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+        
+        /* --- GLASSMORPHISM COMPONENTS (World Class Look) --- */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border:1px solid var(--glass-border);
+            border-radius: var(--card-radius);
+            box-shadow: var(--shadow-lg);
+            padding: 24px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.22);
+            transform: translateY(-6px) scale(1.01);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        /* --- HEADER & SEARCH --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding-top: 5px;
+        }
+
+        .app-title {
+            font-size: clamp(1.2rem, 5vw, 1.8rem); /* Bigger font for title only */
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            letter-spacing: -0.5px;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 40px 10px 18px;
+            border-radius: 50px;
+            border: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+            outline: none;
+        }
+        
+        .search-input::placeholder { color: rgba(255, 255, 255, 0.6); }
+        .search-input:focus { 
+            background: rgba(0,0,0,0.25);
+            border-color: rgba(255,255,255,0.7);
+            box-shadow: 0 0 0 4px rgba(255,255,255,0.1);
+        }
+
+        .search-btn {
+            position: absolute;
+            right: 4px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+            transition: transform 0.2s;
+        }
+        
+        .search-btn:hover { transform: translateY(-50%) scale(1.1); }
+
+        /* --- HERO SECTION --- */
+        .hero-section {
+            text-align: center;
+            padding: 20px 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Responsive Font Scaling using CLAMP */
+        .hero-temp { 
+            font-size: clamp(3.5rem, 12vw, 6rem); 
+            font-weight: 800; 
+            line-height: 1; 
+            margin: 5px 0 10px 0;
+            text-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            letter-spacing: -2px;
+        }
+        
+        .hero-condition { font-size: clamp(1rem, 4vw, 1.4rem); margin-bottom: 20px; text-transform: capitalize; font-weight: 500; }
+        
+        .weather-icon-large {
+            font-size: clamp(2.5rem, 10vw, 4.5rem);
+            display: inline-block;
+            animation: float 5s ease-in-out infinite;
+            filter: drop-shadow(0 15px 20px rgba(0,0,0,0.25));
+        }
+
+        .hero-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 8px;
+            margin-top: 20px;
+            background: rgba(0,0,0,0.15);
+            padding: 12px;
+            border-radius: 16px;
+            font-size: 0.8rem;
+        }
+
+        /* --- HOURLY FORECAST (COMPACT & WORLD CLASS) --- */
+        .scroll-container {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 4px 4px 15px 4px;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+            /* Hide scrollbar for cleaner look */
+            scrollbar-width: none; 
+            -ms-overflow-style: none;
+        }
+
+        .scroll-container::-webkit-scrollbar { display: none; }
+        
+        .hourly-card {
+            /* Smaller Width for Mobile Compatibility */
+            min-width: 60px; 
+            padding: 8px 6px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.08);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            gap: 4px;
+            flex-shrink: 0;
+            border: 1px solid transparent;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            animation: slideInRight 0.5s ease-out forwards;
+            opacity: 0; /* For slide animation */
+        }
+        
+        .hourly-card:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-3px) scale(1.05);
+        }
+        
+        .hourly-card.active {
+            background: rgba(255, 255, 255, 0.35);
+            border-color: rgba(255, 255, 255, 0.7);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            transform: scale(1.1);
+        }
+
+        /* Compact Text Sizes */
+        .hourly-card .time { font-size: 0.7rem; opacity: 0.8; font-weight: 600; }
+        .hourly-card .icon { font-size:1.1rem; }
+        .hourly-card .temp { font-weight: 800; font-size: 0.95rem; }
+        .hourly-card .precip { font-size: 0.6rem; opacity: 0.7; }
+
+        /* --- DAILY FORECAST --- */
+        .daily-grid {
+            display: grid;
+            /* Responsive Grid: more items on big screens, fewer on mobile */
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); 
+            gap: 10px;
+        }
+        
+        .daily-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.08);
+            transition: transform 0.3s;
+        }
+
+        .daily-card:hover { transform: translateY(-4px); background: rgba(255,255,255,0.15); }
+
+        /* --- EARTHQUAKE SECTION --- */
+        .quake-card {
+            border-left: 4px solid rgba(255,255,255,0.4);
+        }
+        .quake-card.high-severity { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.15); }
+        .quake-card.med-severity { border-left-color: #f97316; background: rgba(249, 115, 22, 0.15); }
+        
+        .mag-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.8rem;
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* --- CYCLONE ALERT (Danger) --- */
+        .cyclone-banner {
+            background: linear-gradient(90deg, rgba(220, 38, 38, 0.25), rgba(249, 115, 22, 0.25));
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            animation: pulse-red 2.5s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3); }
+            70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        /* --- NO ALERT (Safe) --- */
+        .status-safe {
+            background: rgba(16, 185, 129, 0.15); /* Emerald Green */
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 6px 20px;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            margin-left: auto;
+            margin-right: auto;
+            max-width: fit-content;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            backdrop-filter: blur(10px);
+        }
+
+        /* --- FOOTER --- */
+        .app-footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.8rem;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+
+        /* --- MODAL --- */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(15px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s;
+        }
+        
+        .modal-overlay.open { opacity: 1; pointer-events: auto; }
+        
+        .modal-content {
+            background: rgba(20, 20, 30, 0.98);
+            padding: 30px;
+            border-radius: 30px;
+            max-width: 350px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255,255,255,0.1);
+            transform: scale(0.9);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        .modal-overlay.open .modal-content { transform: scale(1); }
+
+        .btn {
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 12px;
+            font-size: 1rem;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        
+        .btn-primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+        .btn-primary:active { transform: scale(0.96); }
+        .btn-secondary { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); }
+
+        /* --- LOADING STATE --- */
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255,255,255,0.15);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+            margin: 70px auto;
+        }
+        
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* --- RESPONSIVE TUNING --- */
+        @media (max-width: 600px) {
+            .container { padding: 10px; }
+            
+            /* Super compact for mobile */
+            .hourly-card {
+                min-width: 55px; 
+                padding: 6px 4px;
+                gap: 3px;
+            }
+            .hourly-card .time { font-size: 0.6rem; }
+            .hourly-card .icon { font-size: 0.9rem; }
+            .hourly-card .temp { font-size: 0.85rem; }
+
+            .glass-card { padding: 16px; }
+            .hero-details { gap: 5px; }
+            
+            .search-box { width: 100%; max-width: 100%; order: 3; }
+            .app-title { width: 100%; justify-content: center; }
+            
+            .status-safe { width: 100%; max-width: 100%; padding: 8px; font-size: 0.9rem;}
+        }
+    </style>
+</head>
+<body>
+
+    <!-- LOCATION PERMISSION MODAL -->
+    <div id="locationModal" class="modal-overlay">
+        <div class="modal-content">
+            <div style="font-size: 3rem; margin-bottom: 15px; animation: float 4s ease-in-out infinite;">🌍</div>
+            <h2 style="font-size: 1.4rem; margin-bottom: 10px; font-weight: 700;">Enable Location?</h2>
+            <p style="color: rgba(255,255,255,0.6); margin-bottom: 25px; line-height: 1.4; font-size: 0.9rem;">
+                Get accurate weather for your exact area.
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn btn-primary" onclick="handleAllowLocation()">📍 Allow Location</button>
+                <button class="btn btn-secondary" onclick="handleUseGazipur()">Use Default</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- HEADER -->
+        <header class="animate-entry" style="animation-delay: 0.1s;">
+            <div class="app-title">
+                <span>R.Z Weather</span>
+            </div>
+            
+            <form class="search-box" onsubmit="handleSearch(event)">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search (e.g. Dhaka)...">
+                <button type="submit" class="search-btn">🔍</button>
+            </form>
+        </header>
+
+        <!-- LOADING -->
+        <div id="loadingState">
+            <div class="spinner"></div>
+            <p style="text-align: center; opacity: 0.8; font-weight: 500;">Analyzing Weather Patterns...</p>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <main id="mainContent" class="hidden">
+            
+            <!-- CYCLONE STATUS SECTION (Dynamic: Red or Green) -->
+            <section id="cycloneSection" class="hidden">
+                <div id="cycloneContent"></div>
+            </section>
+
+            <!-- CURRENT WEATHER HERO -->
+            <section class="glass-card hero-section animate-entry" style="margin-bottom: 15px; animation-delay: 0.2s;">
+                <h2 id="cityName" style="font-size: 1.5rem; font-weight: 500; letter-spacing: 0.5px; opacity: 0.9;">Your Location</h2>
+                <div class="hero-temp" id="currentTemp">--°</div>
+                <div class="hero-condition">
+                    <span class="weather-icon-large" id="weatherIcon">🌤️</span> 
+                    <span id="weatherDesc">Clear Sky</span>
+                </div>
+                
+                <div class="hero-details">
+                    <div>
+                        <div style="opacity: 0.6; font-size: 0.7rem;">Feels Like</div>
+                        <div style="font-weight: 700; font-size: 1rem;" id="feelsLike">--°</div>
+                    </div>
+                    <div>
+                        <div style="opacity: 0.6; font-size: 0.7rem;">Humidity</div>
+                        <div style="font-weight: 700; font-size: 1rem;" id="humidity">--%</div>
+                    </div>
+                    <div>
+                        <div style="opacity: 0.6; font-size: 0.7rem;">Wind</div>
+                        <div style="font-weight: 700; font-size: 1rem;" id="windSpeed">-- km/h</div>
+                    </div>
+                    <div>
+                        <div style="opacity: 0.6; font-size: 0.7rem;">UV Index</div>
+                        <div style="font-weight: 700; font-size: 1rem;" id="uvIndex">--</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- HOURLY FORECAST -->
+            <section class="animate-entry" style="margin-bottom: 15px; animation-delay: 0.3s;">
+                <h3 style="margin-bottom: 10px; font-weight: 600; padding-left: 5px; opacity: 0.9; font-size: 0.95rem;">24-Hour Forecast</h3>
+                <div id="hourlyContainer" class="scroll-container">
+                    <!-- Hourly items injected here -->
+                </div>
+            </section>
+
+            <!-- DAILY FORECAST -->
+            <section class="animate-entry" style="margin-bottom: 15px; animation-delay: 0.4s;">
+                <h3 style="margin-bottom: 10px; font-weight: 600; padding-left: 5px; opacity: 0.9; font-size: 0.95rem;">7-Day Forecast</h3>
+                <div id="dailyContainer" class="daily-grid">
+                    <!-- Daily items injected here -->
+                </div>
+            </section>
+
+            <!-- EARTHQUAKES -->
+            <section class="animate-entry" style="animation-delay: 0.5s;">
+                <h3 style="margin-bottom: 10px; font-weight: 600; padding-left: 5px; opacity: 0.9; font-size: 0.95rem;">
+                    সাম্প্রতিক ভূমিকম্প
+                </h3>
+                <div id="earthquakeContainer" class="grid">
+                    <!-- Quake items injected here -->
+                </div>
+            </section>
+
+        </main>
+
+        <!-- FOOTER -->
+        <footer class="app-footer">
+            Nice||Mahbub Khandaker
+        </footer>
+    </div>
+
+    <script>
+        /* --- CONSTANTS & CONFIG --- */
+        const BANGLADESH_DISTRICTS = [
+            { name: 'Dhaka', lat: 23.8103, lon: 90.4125 },
+            { name: 'Chattogram', lat: 22.3569, lon: 91.7832 },
+            { name: 'Mymensingh', lat: 24.7471, lon: 90.4203 },
+            { name: 'Jamalpur', lat: 24.9379, lon: 89.9373 },
+            { name: 'Sylhet', lat: 24.8949, lon: 91.8687 },
+            { name: 'Rajshahi', lat: 24.3745, lon: 88.6042 },
+            { name: 'Khulna', lat: 22.8456, lon: 89.5403 },
+            { name: 'Barishal', lat: 22.7010, lon: 90.3535 },
+            { name: 'Rangpur', lat: 25.7439, lon: 89.2752 },
+            { name: 'Cumilla', lat: 23.4607, lon: 91.1809 },
+            { name: 'Gazipur', lat: 23.9989, lon: 90.4264 },
+            { name: 'Tangail', lat: 24.2513, lon: 89.9167 },
+            { name: 'Bogura', lat: 24.8465, lon: 89.3770 },
+            { name: 'Dinajpur', lat: 25.6217, lon: 88.6354 },
+            { name: 'Jessore', lat: 23.1634, lon: 89.2182 },
+            { name: 'Pabna', lat: 24.0064, lon: 89.2372 },
+            { name: 'Narayanganj', lat: 23.6238, lon: 90.4995 },
+            { name: 'Faridpur', lat: 23.6070, lon: 89.8429 },
+            { name: 'Sherpur', lat: 25.0204, lon: 90.0152 },
+            { name: 'Netrokona', lat: 24.8806, lon: 90.7275 },
+            { name: 'Cox\'s Bazar', lat: 21.4272, lon: 92.0058 }
+        ];
+
+        const BANGLADESH_CITIES_EQ = [
+            { name: 'Dhaka', lat: 23.8103, lon: 90.4125 },
+            { name: 'Chattogram', lat: 22.3569, lon: 91.7832 },
+            { name: 'Sylhet', lat: 24.8949, lon: 91.8687 },
+            { name: 'Rajshahi', lat: 24.3745, lon: 88.6042 },
+            { name: 'Khulna', lat: 22.8456, lon: 89.5403 }
+        ];
+
+        const WEATHER_GRADIENTS = {
+            0: 'linear-gradient(-45deg, #4facfe 0%, #00f2fe 100%)',
+            1: 'linear-gradient(-45deg, #4facfe 0%, #00f2fe 100%)',
+            2: 'linear-gradient(-45deg, #a1c4fd 0%, #c2e9fb 100%)',
+            3: 'linear-gradient(-45deg, #89f7fe 0%, #66a6ff 100%)',
+            45: 'linear-gradient(-45deg, #e6e9f0 0%, #eef1f5 100%)',
+            48: 'linear-gradient(-45deg, #e6e9f0 0%, #eef1f5 100%)',
+            51: 'linear-gradient(-45deg, #3a6186 0%, #89253e 100%)',
+            53: 'linear-gradient(-45deg, #3a6186 0%, #89253e 100%)',
+            55: 'linear-gradient(-45deg, #373B44 0%, #4286f4 100%)',
+            61: 'linear-gradient(-45deg, #373B44 0%, #4286f4 100%)',
+            63: 'linear-gradient(-45deg, #0f2027 0%, #203a43 50%, #2c5364 100%)',
+            65: 'linear-gradient(-45deg, #0f2027 0%, #203a43 50%, #2c5364 100%)',
+            95: 'linear-gradient(-45deg, #232526 0%, #414345 100%)',
+            96: 'linear-gradient(-45deg, #232526 0%, #414345 100%)',
+            99: 'linear-gradient(-45deg, #232526 0%, #414345 100%)'
+        };
+
+        let currentState = {
+            location: null,
+            weather: null,
+            earthquakes: []
+        };
+
+        /* --- UTILS --- */
+        function getWeatherEmoji(code) {
+            const mapping = {
+                0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
+                45: '🌫️', 48: '🌫️',
+                51: '🌦️', 53: '🌧️', 55: '🌧️',
+                61: '🌧️', 63: '🌧️', 65: '⛈️',
+                71: '🌨️', 73: '🌨️', 75: '❄️', 77: '🌨️',
+                80: '🌦️', 81: '⛈️', 82: '⛈️',
+                85: '🌨️', 86: '❄️',
+                95: '⛈️', 96: '⛈️', 99: '⛈️'
+            };
+            return mapping[code] || '🌤️';
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * 
+                      Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        }
+
+        /* --- GEOCODING --- */
+        async function reverseGeocodeHybrid(lat, lon) {
+            try {
+                const url = `https://geocoding-api.open-meteo.com/v1/search?latitude=${lat}&longitude=${lon}&count=10&language=en&format=json`;
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.results) {
+                    const bdResult = data.results.find(r => r.country_code === 'BD') || data.results[0];
+                    if (bdResult) return bdResult.name;
+                }
+            } catch (e) { console.log("OM Geocode failed", e); }
+            return findClosestDistrict(lat, lon);
+        }
+
+        function findClosestDistrict(lat, lon) {
+            let closest = BANGLADESH_DISTRICTS[0];
+            let minDist = calculateDistance(lat, lon, closest.lat, closest.lon);
+            for (const d of BANGLADESH_DISTRICTS) {
+                const dist = calculateDistance(lat, lon, d.lat, d.lon);
+                if (dist < minDist) { minDist = dist; closest = d; }
+            }
+            return closest.name;
+        }
+
+        async function forwardGeocode(cityName) {
+            try {
+                const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=en&format=json`;
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.results && data.results.length > 0) {
+                    const r = data.results[0];
+                    return { name: r.name, lat: r.latitude, lon: r.longitude };
+                }
+            } catch (e) { console.error("Search error", e); }
+            return null;
+        }
+
+        /* --- API HANDLERS --- */
+        async function fetchWeatherData(lat, lon) {
+            const url = `https://api.open-meteo.com/v1/forecast?` +
+                `latitude=${lat}&longitude=${lon}` +
+                `&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,uv_index` +
+                `&hourly=temperature_2m,weather_code,precipitation_probability` +
+                `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max` +
+                `&timezone=Asia/Dhaka&forecast_days=7`;
+            const res = await fetch(url);
+            return await res.json();
+        }
+
+        async function fetchEarthquakeData() {
+            const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_week.geojson';
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                return processEarthquakes(data.features);
+            } catch (e) { return []; }
+        }
+
+        async function fetchCycloneAlerts(lat, lon) {
+            let alerts = [];
+            try {
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&alerts=true`;
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.alerts) {
+                    alerts = data.alerts.filter(a => {
+                        const e = (a.event || '').toLowerCase();
+                        return e.includes('cyclone') || e.includes('storm') || e.includes('wind');
+                    });
+                }
+            } catch (e) {}
+            return alerts;
+        }
+
+        function processEarthquakes(features) {
+            const relevant = features.filter(eq => {
+                const [lon, lat] = eq.geometry.coordinates;
+                return lat >= 15 && lat <= 32 && lon >= 83 && lon <= 98;
+            });
+            const processed = relevant.map(eq => {
+                const [lon, lat, depth] = eq.geometry.coordinates;
+                const mag = eq.properties.mag;
+                let minDist = Infinity; let closest = 'Dhaka';
+                BANGLADESH_CITIES_EQ.forEach(c => {
+                    const d = calculateDistance(lat, lon, c.lat, c.lon);
+                    if (d < minDist) { minDist = d; closest = c.name; }
+                });
+                const feltMag = Math.max(0, mag - (minDist/150) - (Math.abs(depth)/80));
+                return {
+                    id: eq.id, mag: mag, feltMag: feltMag,
+                    place: eq.properties.place, time: eq.properties.time,
+                    dist: Math.round(minDist), city: closest, url: eq.properties.url
+                };
+            }).filter(eq => eq.feltMag >= 1.0);
+            processed.sort((a, b) => b.feltMag - a.feltMag);
+            return processed.slice(0, 10);
+        }
+
+        /* --- UI UPDATES --- */
+        function updateBackground(code) {
+            const grad = WEATHER_GRADIENTS[code] || WEATHER_GRADIENTS[0];
+            document.body.style.background = grad;
+            document.body.style.backgroundSize = "400% 400%";
+        }
+
+        function renderUI() {
+            const { weather, earthquakes, location } = currentState;
+            if (!weather || !location) return;
+
+            updateBackground(weather.current.weather_code);
+
+            const displayTitle = location.isManual ? `${location.name}, BD` : "Your Location";
+            document.getElementById('cityName').innerText = displayTitle;
+            document.getElementById('currentTemp').innerText = `${Math.round(weather.current.temperature_2m)}°`;
+            document.getElementById('weatherIcon').innerText = getWeatherEmoji(weather.current.weather_code);
+            document.getElementById('weatherDesc').innerText = getWeatherDesc(weather.current.weather_code);
+            document.getElementById('feelsLike').innerText = `${Math.round(weather.current.apparent_temperature)}°`;
+            document.getElementById('humidity').innerText = `${weather.current.relative_humidity_2m}%`;
+            document.getElementById('windSpeed').innerText = `${weather.current.wind_speed_10m} km/h`;
+            document.getElementById('uvIndex').innerText = Math.round(weather.current.uv_index);
+
+            // Hourly Logic (Compact)
+            const hourlyContainer = document.getElementById('hourlyContainer');
+            hourlyContainer.innerHTML = '';
+            const nowDhaka = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" }));
+            const currentHour = nowDhaka.getHours();
+            const currentDateStr = nowDhaka.toISOString().split('T')[0];
+            const startIndex = weather.hourly.time.findIndex(t => {
+                const tDate = t.split('T')[0];
+                const tHour = parseInt(t.split('T')[1].split(':')[0]);
+                return tDate === currentDateStr && tHour === currentHour;
+            });
+            const safeStartIndex = startIndex >= 0 ? startIndex : 0;
+
+            for (let i = safeStartIndex; i < safeStartIndex + 24; i++) {
+                if (i >= weather.hourly.time.length) break;
+                const time = weather.hourly.time[i];
+                const temp = Math.round(weather.hourly.temperature_2m[i]);
+                const code = weather.hourly.weather_code[i];
+                const precip = weather.hourly.precipitation_probability[i];
+                
+                const card = document.createElement('div');
+                card.className = `hourly-card ${i === safeStartIndex ? 'active' : ''}`;
+                // Add staggered delay for slide animation
+                card.style.animationDelay = `${(i - safeStartIndex) * 0.05}s`;
+
+                const isNow = i === safeStartIndex;
+                const [h, m] = time.split('T')[1].split(':');
+                const displayHour = parseInt(h);
+                const ampm = displayHour >= 12 ? 'PM' : 'AM';
+                const displayTime12 = ((displayHour + 11) % 12 + 1) + `:${m} ${ampm}`;
+
+                // Compact HTML structure
+                card.innerHTML = `
+                    <div class="time" style="font-weight: ${isNow ? 'bold' : 'normal'}">${isNow ? 'Now' : displayTime12}</div>
+                    <div class="icon">${getWeatherEmoji(code)}</div>
+                    <div class="temp">${temp}°</div>
+                    <div class="precip">💧 ${precip}%</div>
+                `;
+                hourlyContainer.appendChild(card);
+            }
+
+            // Daily (Compact)
+            const dailyContainer = document.getElementById('dailyContainer');
+            dailyContainer.innerHTML = '';
+            for(let i=0; i<weather.daily.time.length; i++) {
+                const card = document.createElement('div');
+                card.className = 'daily-card glass-card';
+                card.style.padding = '10px'; // Tighter padding
+                card.innerHTML = `
+                    <div style="font-size: 0.75rem; margin-bottom: 4px; opacity: 0.8;">${formatDate(weather.daily.time[i])}</div>
+                    <div style="font-size: 1.5rem; margin: 5px 0;">${getWeatherEmoji(weather.daily.weather_code[i])}</div>
+                    <div style="font-weight: 700;">${Math.round(weather.daily.temperature_2m_max[i])}°</div>
+                    <div style="opacity: 0.7; font-size: 0.75rem;">${Math.round(weather.daily.temperature_2m_min[i])}°</div>
+                `;
+                dailyContainer.appendChild(card);
+            }
+
+            // Earthquakes
+            const eqContainer = document.getElementById('earthquakeContainer');
+            eqContainer.innerHTML = '';
+            if (earthquakes.length === 0) {
+                eqContainer.innerHTML = `<div class="glass-card" style="text-align:center; color: #4ade80; padding: 20px;"><div style="font-size: 1.5rem; margin-bottom:8px;">✅</div><div style="font-size:0.85rem;">No significant earthquakes in BD.</div></div>`;
+            } else {
+                earthquakes.forEach(eq => {
+                    const severityClass = eq.feltMag >= 3.5 ? 'high-severity' : (eq.feltMag >= 2.5 ? 'med-severity' : '');
+                    const date = new Date(eq.time);
+                    const card = document.createElement('div');
+                    card.className = `glass-card quake-card ${severityClass}`;
+                    card.innerHTML = `
+                        <div class="flex justify-between items-center" style="margin-bottom:6px;">
+                            <div class="mag-badge">${eq.mag.toFixed(1)} Original</div>
+                            <div style="font-size:0.7rem; opacity:0.7;">${date.toLocaleDateString()}</div>
+                        </div>
+                        <div style="font-weight:700; margin-bottom:4px; font-size: 0.9rem;">📍 ${eq.place}</div>
+                        <div style="font-size: 0.8rem; display:flex; gap:10px; margin-bottom:8px; flex-wrap:wrap;">
+                            <span>🇧🇩 Felt: <strong>${eq.feltMag.toFixed(1)}</strong></span>
+                            <span>📏 ${eq.dist}km</span>
+                        </div>
+                        ${eq.feltMag >= 3.5 ? `<div style="font-size:0.7rem; color:#fca5a5; margin-bottom:6px;">⚠️ Check structures.</div>` : ''}
+                        <a href="${eq.url}" target="_blank" style="font-size:0.75rem; color:#60a5fa; text-decoration:none;">Details →</a>
+                    `;
+                    eqContainer.appendChild(card);
+                });
+            }
+
+            document.getElementById('mainContent').classList.remove('hidden');
+            document.getElementById('loadingState').classList.add('hidden');
+        }
+
+        function getWeatherDesc(code) {
+            if (code === 0) return "Clear Sky";
+            if (code >= 1 && code <= 3) return "Partly Cloudy";
+            if (code >= 45 && code <= 48) return "Foggy";
+            if (code >= 51 && code <= 67) return "Rain";
+            if (code >= 71 && code <= 77) return "Snow";
+            if (code >= 95) return "Thunderstorm";
+            return "Cloudy";
+        }
+
+        async function updateCyclones(lat, lon) {
+            const alerts = await fetchCycloneAlerts(lat, lon);
+            const section = document.getElementById('cycloneSection');
+            const content = document.getElementById('cycloneContent');
+
+            section.classList.remove('hidden');
+            section.className = ''; 
+
+            if (alerts.length > 0) {
+                section.className = 'glass-card cyclone-banner';
+                content.innerHTML = `
+                    <h3 style="display: flex; align-items: center; gap: 8px; color: #fca5a5; margin-bottom: 8px;">
+                        ⚠️ <span style="color: white; font-size: 1.1rem;">ঘূর্ণিঝড় সতর্কতা</span>
+                    </h3>
+                    ${alerts.map(a => `<div style="margin-bottom:6px; font-size:0.9rem;"><strong>${a.event}</strong><div style="opacity:0.9;">${a.description}</div></div>`).join('')}
+                `;
+            } else {
+                section.className = 'status-safe';
+                // CHANGED: Removed Emoji, Changed Text to R.Z Weather
+                content.innerHTML = `
+                    <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
+                        <span style="font-weight:700; font-size: 1.1rem; letter-spacing: 1px;">R.Z Weather</span>
+                    </div>
+                `;
+            }
+        }
+
+        /* --- INIT & EVENTS --- */
+        async function initApp(loc) {
+            currentState.location = loc;
+            document.getElementById('mainContent').classList.add('hidden');
+            document.getElementById('loadingState').classList.remove('hidden');
+            document.getElementById('cycloneSection').classList.add('hidden');
+
+            try {
+                const [w, e] = await Promise.all([
+                    fetchWeatherData(loc.lat, loc.lon),
+                    fetchEarthquakeData()
+                ]);
+                currentState.weather = w;
+                currentState.earthquakes = e;
+                renderUI();
+                updateCyclones(loc.lat, loc.lon);
+            } catch (err) {
+                console.error(err);
+                document.getElementById('loadingState').innerHTML = `
+                    <div style="text-align:center; padding: 20px;">
+                        <h3 style="color: #ff6b6b; font-size: 1.2rem; margin-bottom: 10px;">Connection Failed</h3>
+                        <button class="btn btn-primary" style="margin-top: 15px; max-width: 180px;" onclick="location.reload()">Try Again</button>
+                    </div>
+                `;
+            }
+        }
+
+        async function handleAllowLocation() {
+            document.getElementById('locationModal').classList.remove('open');
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(async (pos) => {
+                    const { latitude, longitude } = pos.coords;
+                    const name = await reverseGeocodeHybrid(latitude, longitude);
+                    initApp({ name, lat: latitude, lon: longitude, isManual: false });
+                }, (err) => {
+                    handleUseGazipur();
+                });
+            } else {
+                handleUseGazipur();
+            }
+        }
+
+        function handleUseGazipur() {
+            document.getElementById('locationModal').classList.remove('open');
+            initApp({ name: 'Gazipur', lat: 23.9989, lon: 90.4264, isManual: false });
+        }
+
+        async function handleSearch(e) {
+            e.preventDefault();
+            const term = document.getElementById('searchInput').value;
+            if (!term) return;
+            const result = await forwardGeocode(term);
+            if (result) {
+                initApp({ name: result.name, lat: result.lat, lon: result.lon, isManual: true });
+            } else {
+                alert("City not found.");
+            }
+        }
+
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('locationModal').classList.add('open');
+            }, 400);
+        });
+
+    </script>
+</body>
+</html>
